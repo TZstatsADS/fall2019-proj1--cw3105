@@ -1,0 +1,243 @@
+---
+title: "Project 1: A 'data story' on the songs of our times"
+author: "Chen Wang"
+date: "9/18/2019"
+output:
+  html_document: default
+---
+
+```{r load libraries, warning=FALSE, message=FALSE, echo=FALSE}
+library(tidyverse)
+library(tidytext)
+library(plotly)
+library(DT)
+library(tm)
+library(data.table)
+library(scales)
+library(wordcloud2)
+library(wordcloud)
+library(gridExtra)
+library(ngram)
+library(jpeg)
+```
+### Introduction 
+
+The very much anticipated new song by Jay Chou hit 1.93 million views in 8 hours after it was released on Monday (September 16). The new song "Won't Cry" quickly reached 300,000 views on YouTube in 30 minutes. 
+
+```{r, echo=FALSE}
+image <- readJPEG('/Users/Chen/Desktop/GR5243/Jay.jpeg',native=TRUE)
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(image,0,0,1,1)
+```
+
+Jay Chou is well known for composing all his new songs and some times even writing his own lyrics. So if you dream to become a famous singer like Jay who has fans all over the world, this post might help you with it.
+
+By analyzing more than 380,000 of song lyrics of the time, let's take a look at some of the characteristcs shared by these song lyrics. 
+
+### 1. Brief overview of the lyrics list 
+
+```{r load data, warning=FALSE, message=FALSE, echo=FALSE}
+# load lyrics data
+load('/Users/Chen/Desktop/GR5243/processed_lyrics.RData') 
+dt_lyrics %>%
+  count(genre) %>%
+  ungroup() %>% 
+  arrange(desc(n))
+```
+
+According to this table, we can see that the top 3 popular genres are Rock, Pop and Metal songs. In this post, we will also be mainly focusing on these 3 genres(due to the large amount of data). 
+
+
+### 2. Which words should you include in your lyrics? 
+
+Now that you want to write your first song, what should you be aware of when you are writing the lyrics? Are there any words that you should include to have a higher chance of becoming famous? The following results could provide you with a better idea. 
+
+```{r, echo=FALSE}
+mycorpus <- VCorpus(VectorSource(dt_lyrics$stemmedwords))
+mytdm <- TermDocumentMatrix(mycorpus)
+mytdm.tidy <- tidy(mytdm)
+mytdm.overall <- summarise(group_by(mytdm.tidy, term), sum(count))
+set.seed(100)
+wordcloud(mytdm.overall$term, mytdm.overall$`sum(count)`,
+          scale=c(5,0.5),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          use.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(8,"Dark2"))
+```
+
+As shown in the word cloud, we can see that the word love, time, baby, day, life, ill, girl etc, are the most popular words in the the songs. So when you start writing the lyrics, make sure you have mentioned some of those. 
+
+### 3. Do different genres of music prefer different words? 
+
+Now that you have an idea of which words are most popular in the songs, you might be wondering if these words are common in all kinds of music. As mentioned before, we will be focusing on the 3 most popular genres: Rock, Pop and Metal. 
+
+```{r, echo=FALSE}
+# split the lyrics according to genre 
+df <- data.frame(table(dt_lyrics$genre))
+colnames(df) <- c("Genre","Freq") # show the number of songs in each genre 
+dt_rock <- dt_lyrics[which(dt_lyrics$genre == "Rock"),]
+rockcorpus <- VCorpus(VectorSource(dt_rock$stemmedwords))
+rocktdm <- TermDocumentMatrix(rockcorpus)
+rocktdm.tidy <- tidy(rocktdm)
+rocktdm.overall <- summarise(group_by(rocktdm.tidy, term), sum(count))
+set.seed(100)
+wordcloud(rocktdm.overall$term, rocktdm.overall$`sum(count)`,
+          scale=c(4,0.5),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          use.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(8,"Blues"))
+```
+
+It seems that the most popular words for rock musics are love, time, baby etc, showing that most rock lyrics are written to express the liking emotions. So if you wish to begin with Rock lyrics, be sure to express your love and likes. 
+
+```{r, echo=FALSE}
+dt_pop <- dt_lyrics[which(dt_lyrics$genre == "Pop"),]
+popcorpus <- VCorpus(VectorSource(dt_pop$stemmedwords))
+poptdm <- TermDocumentMatrix(popcorpus)
+poptdm.tidy <- tidy(poptdm)
+poptdm.overall <- summarise(group_by(poptdm.tidy, term), sum(count))
+set.seed(100)
+wordcloud(poptdm.overall$term, poptdm.overall$`sum(count)`,
+          scale=c(4,0.5),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          use.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(8,"PuRd"))
+```
+
+As we move on the Pop songs, we can see that the results are very similar to the Rock music, with the most popular words as love, baby, time, heart etc. 
+
+```{r, echo=FALSE}
+dt_metal <- dt_lyrics[which(dt_lyrics$genre == "Metal"),]
+metalcorpus <- VCorpus(VectorSource(dt_metal$stemmedwords))
+metaltdm <- TermDocumentMatrix(metalcorpus)
+metaltdm.tidy <- tidy(metaltdm)
+metaltdm.overall <- summarise(group_by(metaltdm.tidy, term), sum(count))
+set.seed(100)
+wordcloud(metaltdm.overall$term, metaltdm.overall$`sum(count)`,
+          scale=c(3,0.5),
+          max.words=80,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          use.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(8,"Greens"))
+```
+
+However, words have changed for Metal music. The popular words in this genre are more negative and gloomy than the other two genres, with words like life, time, die, death etc. 
+
+### 4. Are lyrics differed by positive and negative sentiments? 
+
+Now that we have an idea about the popular words in the three genres of music, you might wonder why do those popular words differ for each genre. It is possible that each genre are related to different kinds of sentiments and feelings that represent the artists. Let's take a deeper analysis of them. 
+
+```{r, echo=FALSE}
+dt_mix <- rbind(dt_metal,dt_pop,dt_rock)
+tidy_lyrics <- dt_mix%>%
+  unnest_tokens(word,stemmedwords)
+song_sentiment <- tidy_lyrics %>%
+  mutate(word_count = 1:n(), index = word_count %/% 1000 + 1) %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(genre, index=index, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+ggplot(song_sentiment, aes(index, sentiment, fill = genre)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~genre, ncol = 2, scales = "free_x")
+```
+
+From the sentiment analysis, we can see that Metal music express the most negative sentiments, with only a few positive words in the lyrics. For Rock music, negative sentiment is also expressed in the lyrics. However, for Pop music, the situation is different. Both positive and negative sentiments are expressed evenly in the lyrics. So to better understand what words to use, further analysis can be carried out. 
+
+### 5. Which words can represent positive and negative sentiments? 
+```{r, echo=FALSE}
+bing_count <- tidy_lyrics %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+library(scales)
+bing_count %>%
+  group_by(sentiment) %>%
+  top_n(8) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+According to the chart, we can see that if you want to write a song with negative sentiments, words like fall, die, lie, and cry can be chosen. However, if you want to write a song that shows positive feelings, "love" is definitely the top choice. 
+
+### 6. Which artist can you choose to learn from? 
+
+Now, you already know which words to choose and use for different genres of music. Next, in order to write better lyrics, you would want to learn more from the successful artists. The following analysis can help direct you which artists to learn from. 
+```{r, echo=FALSE}
+dt_artist <- fread('/Users/Chen/Desktop/GR5243/artists.csv', header = T, na.strings = c("", "NA"))
+names(dt_artist)[1] <- "artist"
+data <- merge(dt_lyrics, dt_artist, by.x = "artist")
+data.loc <- data[!is.na(data$Origin),]
+tidy_lyrics_loc <- data.loc%>%
+  unnest_tokens(word,stemmedwords)
+loc_count <- tidy_lyrics_loc %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(Origin, sentiment, sort = TRUE) %>%
+  ungroup()
+loc_count %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(Origin = reorder(Origin, n)) %>%
+  ggplot(aes(Origin, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+To write more of a negative sentiment in the lyrics, artists from Los Angeles and London can be learned from. This is the same for positive songs, but artists in both places tend to express negative feelings more. However, for artists from St. Joseph, they are known to write songs with more negative sentiments, so it might be a good place to travel to, in order to get better prepared for negative feelings. This is the same for "positive" origins like Detroit, Liverpool and Philadelphia. 
+
+```{r, echo=FALSE}
+dt_fall <- tidy_lyrics_loc[which(tidy_lyrics_loc$word == "fall"),]
+df <- dt_fall %>%
+  count(Origin) %>%
+  ungroup() %>% 
+  arrange(desc(n))
+ggplot(df[1:10,], aes(x = reorder(Origin,n), y = n)) +
+  geom_bar(stat = "identity") +
+  xlab("Origin") + 
+  ylab("Counts") +
+  ggtitle("Top 10 Origins using 'Fall' most frequently ") + 
+  coord_flip()
+```
+
+```{r, echo=FALSE}
+dt_love <- tidy_lyrics_loc[which(tidy_lyrics_loc$word == "love"),]
+df <- dt_love %>%
+  count(Origin) %>%
+  ungroup() %>% 
+  arrange(desc(n))
+ggplot(df[1:10,], aes(x = reorder(Origin,n), y = n)) +
+  geom_bar(stat = "identity") +
+  xlab("Origin") + 
+  ylab("Counts") +
+  ggtitle("Top 10 Origins using 'Love' most frequently ") + 
+  coord_flip()
+```
+
+"Fall" and "Love" are the most popular words that specifically represent the negative and positive sentiments. Since they are the words that represent each sentiment, the origins shown from these two graphs are very much similar to the origins of artists that write overall positive and negative lyrics. 
+
+After reading this post, I am sure that you are ready to pick up your pen and start with the lyrics. Try using the words we have discussed such as "love" and "baby" if aim for a positive sensing song and "fall" and "life" for the opposite. Try Pop music if you have a positive feeling for life and aim for metal music if you want to complain about the difficulties. Furthermore, always remember to learn from the successful artists and perhaps even travel to their hometown to find the feeling and idea for better lyrics. 
